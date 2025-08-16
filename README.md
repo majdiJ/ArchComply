@@ -20,7 +20,7 @@ It is especially useful for legal, compliance, and records management teams hand
 
 ## Usage
 
-1. Open `destruction-date-calculator/destruction-date-calculator.html` in your web browser.
+1. Open (['archcomply.wandstack.com/destruction-date-calculator/'](https://archcomply.wandstack.com/destruction-date-calculator/) in your web browser.
 2. Choose whether to enter a Date of Birth or an Age with a reference date.
 3. Enter the required details:
 	- DOB or Age + Reference Date

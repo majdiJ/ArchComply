@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArchComply - Destruction Date Calculator</title>
+    <link rel="stylesheet" href="/resources/styles/style.css">
+    <link rel="icon" href="/resources/images/logo/logo.png" type="image/png">
+</head>
+
+<body>
+    <header>
+        <div class="logo-section">
+            <img src="/resources/images/logo/logo.png" alt="ArchComply Logo" class="image-logo">
+            <h1 class="logo-text">
+                ArchComply<br>
+                <span class="logo-subtext">Destruction Date Calculator</span>
+            </h1>
+        </div>
+    </header>
+
+    <main>
+        <div class="calculator-container">
+            <h2>Calculate Destruction Date</h2>
+
+            <div>
+                <label>
+                    <input type="radio" name="ageMethod" value="dob" id="methodDob" checked>
+                    Enter DOB
+                </label>
+                <br>
+                <label>
+                    <input type="radio" name="ageMethod" value="age" id="methodAge">
+                    Enter age + reference date
+                </label>
+            </div>
+
+            <br>
+
+            <div id="dobBlock">
+                <p class="headerLabel">Date of Birth</p>
+                <input id="dob-day" type="number" placeholder="DD" min="1" max="31" class="longerInputLength boxInput">
+                <input id="dob-month" type="number" placeholder="MM" min="1" max="12" class="longerInputLength boxInput">
+                <input id="dob-year" type="number" placeholder="YYYY" min="1000" max="9999" class="longerInputLength2 boxInput">
+            </div>
+
+            <div id="ageBlock" class="hidden">
+
+                <div class="ageInput">
+                    <p for="age" class="headerLabel">Age</p>
+                    <input id="age" type="number" placeholder="12" min="1" max="200" class="boxInput">
+                </div>
+
+                <div class="refDateInput">
+                    <p class="headerLabel">Reference Date for Age</p>
+                    <input id="age-date-day" type="number" placeholder="DD" min="1" max="31" class="longerInputLength boxInput">
+                    <input id="age-date-month" type="number" placeholder="MM" min="1" max="12" class="longerInputLength boxInput">
+                    <input id="age-date-year" type="number" placeholder="YYYY" min="1000" max="9999" class="longerInputLength2 boxInput">
+                </div>
+            </div>
+
+            <br>
+
+            <div>
+                <p class="headerLabel">File closure</p>
+                <input id="fileClosure-month" type="number" placeholder="MM" min="1" max="12" class="longerInputLength boxInput">
+                <input id="fileClosure-year" type="number" placeholder="YYYY" min="1000" max="9999"
+                    class="longerInputLength2 boxInput">
+            </div>
+
+            <br>
+
+            <div>
+                <p for="retention" class="headerLabel">Retention period (years)</p>
+                <input id="retention" type="number" min="0" value="7" required class="boxInput">
+            </div>
+
+            <br>
+
+            <div>
+                <label>
+                    <input type="checkbox" id="copyToClipboard" checked>
+                    Copy result to clipboard automatically
+                </label>
+            </div>
+
+            <br>
+
+            <button id="calculateBtn">Calculate Destruction Date</button>
+
+            <div id="resultContainer" class="hidden errorMessage">
+                <span id="resultText">Enter values into the form to calculate the destruction date.</span>
+            </div>
+
+        </div>
+
+        <div class="navigationHints">
+            <p>press <span class="keyHint">Tab</span> to navigate to next input field.<br>
+            press <span class="keyHint">Shift + Tab</span> to navigate to previous input field.
+            </p>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const ageRadios = document.querySelectorAll('input[name="ageMethod"]');
+            const dobBlock = document.getElementById('dobBlock');
+            const ageBlock = document.getElementById('ageBlock');
+
+            function updateVisibility() {
+                const dobSelected = document.getElementById('methodDob')?.checked === true;
+                if (dobBlock) {
+                    dobBlock.style.display = dobSelected ? '' : 'none';
+                    dobBlock.setAttribute('aria-hidden', (!dobSelected).toString());
+                }
+                if (ageBlock) {
+                    ageBlock.style.display = dobSelected ? 'none' : '';
+                    ageBlock.setAttribute('aria-hidden', dobSelected.toString());
+                }
+            }
+
+            ageRadios.forEach(r => r.addEventListener('change', updateVisibility));
+            updateVisibility();
+
+            function createDateFromDMY(dd, mm, yyyy, opts = {}) {
+                const { utc = false, asString = false } = opts;
+                if (!Number.isInteger(dd) || !Number.isInteger(mm) || !Number.isInteger(yyyy)) {
+                    throw new TypeError('dd, mm and yyyy must be integers.');
+                }
+                if (mm < 1 || mm > 12) throw new RangeError('Month must be between 1 and 12.');
+                const daysInMonth = new Date(yyyy, mm, 0).getDate();
+                if (dd < 1 || dd > daysInMonth) throw new RangeError(`Day must be between 1 and ${daysInMonth} for month ${mm}, year ${yyyy}.`);
+                let date;
+                if (utc) {
+                    date = new Date(Date.UTC(yyyy, mm - 1, dd, 0, 0, 0, 0));
+                    date.setUTCFullYear(yyyy);
+                } else {
+                    date = new Date(yyyy, mm - 1, dd, 0, 0, 0, 0);
+                    date.setFullYear(yyyy);
+                }
+                return asString ? date.toISOString() : date;
+            }
+
+            function get18thBirthday(dob) {
+                const birthDate = new Date(dob);
+                const eighteenthBirthday = new Date(birthDate);
+                eighteenthBirthday.setFullYear(birthDate.getFullYear() + 18);
+                return eighteenthBirthday;
+            }
+
+            function calculateDestructionDate(dob, fileClosure, retentionYears) {
+                if (!(dob instanceof Date) || isNaN(dob.getTime())) throw new TypeError('Invalid Date of Birth.');
+                if (!(fileClosure instanceof Date) || isNaN(fileClosure.getTime())) throw new TypeError('Invalid File Closure Date.');
+                if (!Number.isInteger(retentionYears) || retentionYears < 0) throw new TypeError('Retention period must be a non-negative integer.');
+                const eighteenthBirthday = get18thBirthday(dob);
+                let baseDate;
+                if (fileClosure >= eighteenthBirthday) {
+                    baseDate = fileClosure;
+                } else {
+                    baseDate = eighteenthBirthday;
+                }
+                const working = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+                working.setFullYear(working.getFullYear() + retentionYears);
+                working.setMonth(working.getMonth() + 1);
+                return { date: working, eighteenth: eighteenthBirthday };
+            }
+
+            function formatMonthYear(date) {
+                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                return `${months[date.getMonth()]}-${date.getFullYear()}`;
+            }
+
+            function formatDayMonthYear(date) {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}-${month}-${year}`;
+            }
+
+            document.getElementById("calculateBtn").addEventListener("click", function () {
+                const resultArea = document.getElementById('resultContainer');
+                const resultText = document.getElementById('resultText');
+                if (!resultArea || !resultText) return;
+
+                resultArea.classList.add('hidden');
+                resultText.textContent = 'Unknown';
+
+                const fileClosureMonthEl = document.getElementById('fileClosure-month');
+                const fileClosureYearEl = document.getElementById('fileClosure-year');
+                if (!fileClosureMonthEl.value || !fileClosureYearEl.value) {
+                    resultArea.innerHTML = '<div class="error">Please enter a valid file closure month and year.</div>';
+                    return;
+                }
+                let fileClosureDate;
+                try {
+                    fileClosureDate = createDateFromDMY(1, Number(fileClosureMonthEl.value), Number(fileClosureYearEl.value), { utc: false });
+                } catch (error) {
+                    resultArea.innerHTML = `<div class="error">${error.message}</div>`;
+                    return;
+                }
+
+                const retention = Number(document.getElementById('retention').value);
+                if (isNaN(retention) || retention < 0) {
+                    resultArea.innerHTML = '<div class="error">Please enter a valid retention period (years).</div>';
+                    return;
+                }
+
+                let dob;
+                if (document.getElementById('methodDob').checked) {
+                    const day = Number(document.getElementById('dob-day').value);
+                    const month = Number(document.getElementById('dob-month').value);
+                    const year = Number(document.getElementById('dob-year').value);
+                    try {
+                        dob = createDateFromDMY(day, month, year, { utc: false });
+                    } catch (error) {
+                        resultArea.innerHTML = `<div class="error">${error.message}</div>`;
+                        return;
+                    }
+                } else {
+                    const ageVal = Number(document.getElementById('age').value);
+                    const ageRefDay = Number(document.getElementById('age-date-day').value);
+                    const ageRefMonth = Number(document.getElementById('age-date-month').value);
+                    const ageRefYear = Number(document.getElementById('age-date-year').value);
+                    if (isNaN(ageVal) || ageVal < 0) {
+                        resultArea.innerHTML = '<div class="error">Please enter a valid age (years).</div>';
+                        return;
+                    }
+                    if (!ageRefDay || !ageRefMonth || !ageRefYear) {
+                        resultArea.innerHTML = '<div class="error">Please enter a valid reference date for age.</div>';
+                        return;
+                    }
+                    let ageRefDate;
+                    try {
+                        ageRefDate = createDateFromDMY(ageRefDay, ageRefMonth, ageRefYear, { utc: false });
+                    } catch (error) {
+                        resultArea.innerHTML = `<div class="error">${error.message}</div>`;
+                        return;
+                    }
+                    dob = new Date(ageRefDate);
+                    dob.setFullYear(dob.getFullYear() - ageVal);
+                }
+
+                try {
+                    const destruction = calculateDestructionDate(dob, fileClosureDate, retention);
+                    const destructionFormatted = formatMonthYear(destruction.date);
+                    const eighteenthFormatted = formatDayMonthYear(destruction.eighteenth);
+
+                    resultText.innerHTML = `Destruction Date:<br>${destructionFormatted}<br><br>18th Birthday:<br>${eighteenthFormatted}`;
+                    resultArea.classList.remove('hidden');
+
+                    // Copy to clipboard if selected
+                    if (document.getElementById('copyToClipboard').checked) {
+                        navigator.clipboard.writeText(destructionFormatted).catch(err => console.error('Clipboard copy failed', err));
+                    }
+                } catch (error) {
+                    resultArea.innerHTML = `<div class="error">${error.message}</div>`;
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

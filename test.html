@@ -1,0 +1,256 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Destruction Date Calculator</title>
+  <!-- VERY minimal styling just to keep form readable -->
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    label { display: block; margin-top: 10px; }
+    input[type="text"], input[type="number"], input[type="month"], input[type="date"] {
+      padding: 6px; margin-top: 4px; width: 220px;
+    }
+    .hidden { display: none; }
+    .note { font-size: 0.9em; color: #444; margin-top:4px; }
+    button { margin-top: 12px; padding: 8px 12px; }
+    pre { background:#f3f3f3; padding:10px; display:inline-block; margin-top:12px; }
+    .error { color: darkred; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <h3>Destruction Date Calculator (raw)</h3>
+
+  <form id="calcForm" onsubmit="event.preventDefault(); calculate();">
+    <div>
+      <label>
+        <input type="radio" name="method" value="dob" id="methodDob" checked>
+        Enter DOB (dd-mm-yy or dd-mm-yyyy)
+      </label>
+      <label>
+        <input type="radio" name="method" value="age" id="methodAge">
+        Enter Age + reference date
+      </label>
+    </div>
+
+    <div id="dobBlock">
+      <label for="dob">Date of birth (dd-mm-yy or dd-mm-yyyy)</label>
+      <input id="dob" type="text" placeholder="e.g. 05-08-07 or 05-08-2007">
+      <div class="note">Two-digit years interpreted as: if &lt;= current 2-digit year → 2000s, else → 1900s.</div>
+    </div>
+
+    <div id="ageBlock">
+      <label for="age">Age (years)</label>
+      <input id="age" type="number" min="0" placeholder="e.g. 15">
+      <label for="ageRef">Reference date for age (yyyy-mm-dd)</label>
+      <input id="ageRef" type="date">
+      <div class="note">Age will be applied to the reference date (assumes same day/month), producing an estimated DOB.</div>
+    </div>
+
+    <div>
+      <label for="fileClosure">File closure month</label>
+      <input id="fileClosure" type="month" required>
+      <div class="note">Will be shown as mmm-yyyy (e.g. aug-2029)</div>
+    </div>
+
+    <div>
+      <label for="retention">Retention period (years)</label>
+      <input id="retention" type="number" min="0" value="6" required>
+    </div>
+
+    <label style="margin-top:8px;">
+      <input type="checkbox" id="autoCopy"> Auto copy destruction date to clipboard
+    </label>
+
+    <button type="submit">Calculate destruction date</button>
+  </form>
+
+  <div id="resultArea" aria-live="polite">
+    <span id="resultText"></span>
+  </div>
+
+  <script>
+    // minimal utilities
+    const monthShort = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+    // toggle inputs based on radio
+    const methodDob = document.getElementById('methodDob');
+    const methodAge = document.getElementById('methodAge');
+    const dobBlock = document.getElementById('dobBlock');
+    const ageBlock = document.getElementById('ageBlock');
+
+    function toggleMethod() {
+      if (methodDob.checked) {
+        dobBlock.classList.remove('hidden');
+        ageBlock.classList.add('hidden');
+        document.getElementById('age').disabled = true;
+        document.getElementById('ageRef').disabled = true;
+        document.getElementById('dob').disabled = false;
+      } else {
+        dobBlock.classList.add('hidden');
+        ageBlock.classList.remove('hidden');
+        document.getElementById('age').disabled = false;
+        document.getElementById('ageRef').disabled = false;
+        document.getElementById('dob').disabled = true;
+      }
+      clearResult();
+    }
+    methodDob.addEventListener('change', toggleMethod);
+    methodAge.addEventListener('change', toggleMethod);
+    toggleMethod();
+
+    function clearResult() {
+      document.getElementById('resultArea').innerHTML = '';
+    }
+
+    function parseDOBText(txt) {
+      txt = txt.trim();
+      const parts = txt.split(/[-\/.]/);
+      if (parts.length !== 3) return null;
+      let d = parseInt(parts[0],10);
+      let m = parseInt(parts[1],10);
+      let y = parts[2];
+      if (!d || !m) return null;
+      if (y.length === 2) {
+        const now = new Date();
+        const cur2 = now.getFullYear() % 100;
+        const yNum = parseInt(y,10);
+        y = (yNum <= cur2) ? (2000 + yNum) : (1900 + yNum);
+      } else {
+        y = parseInt(y,10);
+      }
+      if (!y) return null;
+      const date = new Date(y, m - 1, d);
+      if (isNaN(date.getTime())) return null;
+      return date;
+    }
+
+    function formatMonthYearLower(date) {
+      const m = date.getMonth();
+      const y = date.getFullYear();
+      return monthShort[m] + '-' + y;
+    }
+
+    function addYears(date, years) {
+      const d = new Date(date.getTime());
+      d.setFullYear(d.getFullYear() + Number(years));
+      return d;
+    }
+
+    function addMonths(date, months) {
+      const d = new Date(date.getTime());
+      d.setMonth(d.getMonth() + Number(months));
+      return d;
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+      }
+      // fallback
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        return Promise.resolve(true);
+      } catch (e) {
+        return Promise.resolve(false);
+      }
+    }
+
+    function calculate() {
+      const resultArea = document.getElementById('resultArea');
+      resultArea.innerHTML = '';
+      let dob = null;
+
+      const fileClosureEl = document.getElementById('fileClosure');
+      if (!fileClosureEl.value) {
+        resultArea.innerHTML = '<div class="error">Please enter a file closure month.</div>';
+        return;
+      }
+      const [fcYear, fcMonth] = fileClosureEl.value.split('-');
+      const fileClosureDate = new Date(Number(fcYear), Number(fcMonth) - 1, 1); // first of month
+
+      const retention = Number(document.getElementById('retention').value);
+      if (isNaN(retention) || retention < 0) {
+        resultArea.innerHTML = '<div class="error">Please enter a valid retention period (years).</div>';
+        return;
+      }
+
+      if (methodDob.checked) {
+        const dobText = document.getElementById('dob').value;
+        if (!dobText) {
+          resultArea.innerHTML = '<div class="error">Please enter a DOB (dd-mm-yy or dd-mm-yyyy).</div>';
+          return;
+        }
+        dob = parseDOBText(dobText);
+        if (!dob) {
+          resultArea.innerHTML = '<div class="error">Unable to parse DOB. Use dd-mm-yy or dd-mm-yyyy (e.g. 05-08-2007 or 05-08-07).</div>';
+          return;
+        }
+      } else {
+        const ageVal = Number(document.getElementById('age').value);
+        const ageRefVal = document.getElementById('ageRef').value; // yyyy-mm-dd
+        if (isNaN(ageVal) || ageVal < 0) {
+          resultArea.innerHTML = '<div class="error">Please enter a valid age (years).</div>';
+          return;
+        }
+        if (!ageRefVal) {
+          resultArea.innerHTML = '<div class="error">Please enter the reference date for the age (use the date input).</div>';
+          return;
+        }
+        const refParts = ageRefVal.split('-');
+        const refDate = new Date(Number(refParts[0]), Number(refParts[1]) - 1, Number(refParts[2]));
+        dob = new Date(refDate.getTime());
+        dob.setFullYear(refDate.getFullYear() - ageVal);
+        if (isNaN(dob.getTime())) {
+          resultArea.innerHTML = '<div class="error">Could not compute DOB from age + reference date.</div>';
+          return;
+        }
+      }
+
+      const eighteenth = addYears(dob, 18);
+
+      let baseDate;
+      let reasonText;
+      if (fileClosureDate >= eighteenth) {
+        baseDate = fileClosureDate; // adult at closure
+        reasonText = 'Client was 18 or older at file closure → destruction = file closure + retention + 1 month';
+      } else {
+        baseDate = eighteenth; // becomes adult later
+        reasonText = 'Client under 18 at file closure → destruction = 18th birthday + retention + 1 month';
+      }
+
+      // Compute destruction: retention years from base, then +1 month grace.
+      // Force day=1 for stable month/year result.
+      const baseForRetention = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+      const afterRetention = addYears(baseForRetention, retention);
+      const destructionDate = addMonths(afterRetention, 1);
+
+      const parts = [];
+      parts.push('<div><strong>File closure (input):</strong> ' + formatMonthYearLower(fileClosureDate) + '</div>');
+      parts.push('<div><strong>Computed DOB:</strong> ' + dob.getDate().toString().padStart(2,'0') + '-' + (dob.getMonth()+1).toString().padStart(2,'0') + '-' + dob.getFullYear() + '</div>');
+      parts.push('<div><strong>18th birthday:</strong> ' + eighteenth.getDate().toString().padStart(2,'0') + '-' + (eighteenth.getMonth()+1).toString().padStart(2,'0') + '-' + eighteenth.getFullYear() + '</div>');
+      parts.push('<div><strong>Retention (years):</strong> ' + retention + '</div>');
+      parts.push('<div style="margin-top:8px;"><strong>Decision:</strong> ' + reasonText + '</div>');
+
+      const destStr = formatMonthYearLower(destructionDate);
+      parts.push('<div style="margin-top:6px;"><strong>Destruction date (mmm-yyyy):</strong> <pre>' + destStr + '</pre></div>');
+
+      resultArea.innerHTML = parts.join('\n');
+
+      if (document.getElementById('autoCopy').checked) {
+        copyToClipboard(destStr).then(function(ok){
+          if (ok) {
+            const msg = document.createElement('div');
+            msg.textContent = 'Destruction date copied to clipboard.';
+            resultArea.appendChild(msg);
+          }
+        });
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+:root {
+    --global-site-side-padding: 50px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #f7f7f7;
+    padding: 5px var(--global-site-side-padding);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-section .image-logo {
+    width: 45px;
+    height: 45px;
+}
+
+.logo-section .logo-text {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.logo-section .logo-subtext {
+    font-size: 16px;
+    color: #666;
+}
+
+main {
+    padding: 20px var(--global-site-side-padding);
+}
+
+.calculator-container {
+    background-color: #f9f9f9;
+    padding: 15px 40px 30px;
+    border-radius: 20px;
+    max-width: 500px;
+    margin: 50px auto 15px;
+}
+
+.headerLabel {
+    font-weight: bold;
+    margin: 0 0 3px;
+}
+
+.longerInputLength {
+    min-width: 70px;
+}
+
+.longerInputLength2 {
+    min-width: 90px;
+}
+
+.boxInput {
+    margin: 0 2px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.boxInput:hover {
+    border-color: #029063;
+}
+
+.boxInput:focus {
+    border-color: #029063;
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+    accent-color: #029063;
+}
+
+#ageBlock {
+    display: flex;
+    gap: 16px;
+}
+
+button {
+    padding: 10px 15px;
+    background-color: #029063;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #027551;
+}
+
+button:focus,
+input:focus {
+    outline: 1px solid #029063;
+}
+
+#resultContainer {
+    margin-top: 20px;
+}
+
+.errorMessage {
+    color: rgb(255, 56, 53);
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.navigationHints {
+    font-size: 0.85rem;
+    color: #5d5d5d;
+    text-align: center;
+}
+
+.keyHint {
+    font-weight: bold;
+    color: #006344;
+    font-family: monospace;
+}
